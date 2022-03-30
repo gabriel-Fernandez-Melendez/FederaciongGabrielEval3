@@ -2,7 +2,9 @@ package entidades;
 
 //Examen 2 Ejercicio 1
 public enum Categoria {
-	JUNIOR(1, "Junior", 'J'), SENIOR(2, "Senior", 'S'), ESPECIAL(3, "Especial", 'E');
+	JUNIOR(1, "Junior", 'J'),
+	SENIOR(2, "Senior", 'S'), 
+	ESPECIAL(3, "Especial", 'E');
 
 	private int id;
 	String nombre;

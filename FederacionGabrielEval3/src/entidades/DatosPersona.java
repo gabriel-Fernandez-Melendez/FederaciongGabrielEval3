@@ -1,13 +1,25 @@
 package entidades;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
 import java.util.Scanner;
 
+import utils.ConexBD;
+import utils.Datos;
 import utils.Utilidades;
 import validaciones.Validaciones;
 
-public class DatosPersona {
+public class DatosPersona implements Comparable<DatosPersona> {
 	private long id;
 	private String nombre;
 	private String telefono;
@@ -132,6 +144,90 @@ public class DatosPersona {
 		} while (!valido);
 		ret = new DatosPersona(id, nombre, tfn, fecha, doc);
 		return ret;
+	}
+	
+	
+	//ejercicio 1 apartado A del metodo data de DatosPersona
+	public String data() {
+		return "" + id+"|"+nombre+"|" +telefono+"|"+fechaNac.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))+"|"+nifnie.mostrar();
+	}
+	
+	
+	//apartado c del primer ejercicio de exportar personas
+	public static void exportarPersonas() {
+		ArrayList<DatosPersona> personas=new ArrayList<DatosPersona>();
+		for(DatosPersona Dp: Datos.PERSONAS) {
+			personas.add(Dp);
+		}
+		Collections.sort(personas,new ComparadorAlfabetico());
+		String path ="atletas_alfabetico.txt";
+		File fich= new File(path);
+		FileWriter escribir=null;
+	    PrintWriter buffer =null;
+	    try {
+	    try {
+	    	//duda de como llega al fichero los datos
+			escribir= new FileWriter(fich);
+			buffer= new PrintWriter(escribir);
+			for(DatosPersona Dp:personas) {
+				buffer.println(Dp.nombre);
+			}
+		}
+	    finally{
+			if(buffer != null) {
+				buffer.close();
+			}
+			if(escribir != null) {
+				escribir.close();
+			}
+	    }
+	    }
+	    catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			//aqui salen  los datos de errores (con el .err )
+			System.err.println("error dato por  ioException");
+		}
+	}
+
+	//metodo sobreescrito de del compareto del ejercicio 2 apartado a 
+	//no  logre meter con un if que si dos fechas son iguales se haga con el nifnie
+	@Override
+	public int compareTo(DatosPersona o) {
+		boolean vale;
+		return this.fechaNac.compareTo(o.fechaNac);
+		
+	}
+	
+	//apartado b ejercicio 2
+	public static void insertarPersonas() {
+		ArrayList<DatosPersona> personas = new ArrayList<DatosPersona>();
+		for(DatosPersona Dp:Datos.PERSONAS) {
+			personas.add(Dp);
+		}
+		Collections.sort(personas);
+		System.out.println("lista ordenadas de personas segun su nombre:");
+		Iterator<DatosPersona> it= personas.iterator();
+		while(it.hasNext()) {
+			DatosPersona per =(DatosPersona)it.next();
+			Connection conex =ConexBD.establecerConexion();
+			String insert=("insert into Personas(id,nombre,telefono,nifnie)values(?,?,?)");
+			
+			try {
+				PreparedStatement ps = conex.prepareStatement(insert);
+				for(DatosPersona Dp:personas) {
+					ps.setLong(1,Dp.getId());
+					ps.setString(2,Dp.getNombre());
+					ps.setString(3,Dp.getTelefono());
+					ps.setString(4,Dp.getNifnie().mostrar());	
+				}
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+			
+			
+			
+		}
 	}
 
 }

@@ -12,6 +12,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Scanner;
 
 import utils.ConexBD;
@@ -148,17 +150,22 @@ public class DatosPersona implements Comparable<DatosPersona> {
 	
 	
 	//ejercicio 1 apartado A del metodo data de DatosPersona
+	//nota despues del exameen:es mas correcto el uso e this! y con este llamar al setter del atributo , antes que llamar al 
+	//atributo directamente
 	public String data() {
-		return "" + id+"|"+nombre+"|" +telefono+"|"+fechaNac.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))+"|"+nifnie.mostrar();
+		return "" + this.getId() + "|" + this.getNombre() + "|" + this.getTelefono() + "|"
+				+ this.getFechaNac().format(DateTimeFormatter.ofPattern("dd/MM/YYYY")) + "|"
+				+ this.getNifnie().mostrar();	
 	}
 	
 	
 	//apartado c del primer ejercicio de exportar personas
-	public static void exportarPersonas() {
+	public static void exportarPersonasAlfabetico() {
 		ArrayList<DatosPersona> personas=new ArrayList<DatosPersona>();
 		for(DatosPersona Dp: Datos.PERSONAS) {
 			personas.add(Dp);
 		}
+		//a este metodo sort le pasas la coleccion y el metodo de orden alfabetico  para que se ordene
 		Collections.sort(personas,new ComparadorAlfabetico());
 		String path ="atletas_alfabetico.txt";
 		File fich= new File(path);
@@ -170,7 +177,10 @@ public class DatosPersona implements Comparable<DatosPersona> {
 			escribir= new FileWriter(fich);
 			buffer= new PrintWriter(escribir);
 			for(DatosPersona Dp:personas) {
-				buffer.println(Dp.nombre);
+				//nota post examen:cuidado! habia puesto que imprimiera solo el nombre, deme de imprimir el metodo data!
+				buffer.println(Dp.data()+"\n");
+				//muy importante ademas hacer el flush
+				buffer.flush();
 			}
 		}
 	    finally{
@@ -192,42 +202,68 @@ public class DatosPersona implements Comparable<DatosPersona> {
 
 	//metodo sobreescrito de del compareto del ejercicio 2 apartado a 
 	//no  logre meter con un if que si dos fechas son iguales se haga con el nifnie
+	//nota post examen: tuve problemas con este ejercicio , pero tomar en cuenta que en los comparadores pueden venir bien los if else
 	@Override
-	public int compareTo(DatosPersona o) {
-		boolean vale;
-		return this.fechaNac.compareTo(o.fechaNac);
+	public int compareTo(DatosPersona o2) {
+		// si la fecha_nac de this es posterior a la de o2, entonces this es menor (en
+		// edad) que o2
+		if (this.getFechaNac().isAfter(o2.getFechaNac()))
+			return -1;
+		else
+		// si la fecha_nac de this es posterior a la de o2, entonces this es menor (en
+		// edad) que o2
+		if (this.getFechaNac().isBefore(o2.getFechaNac()))
+			return 1;
+		else {
+			// si la fecha_nac de this la misma de o2, entonces se desempata en funcion del
+			// campo Documentacion
+			//nota post examen: ESTO ES LO IMPORTANTE!, ver como atraves de elses se puede declarar
+			//otro comparador dentro del propio comparador con el metodo compare to 
+			return this.getNifnie().compareTo(o2.getNifnie());
+		}
+		/// Otra forma más sencilla sería esta:
+		//return this.getFechaNac().compareTo(o2.getFechaNac());
 		
 	}
 	
 	//apartado b ejercicio 2
-	public static void insertarPersonas() {
-		ArrayList<DatosPersona> personas = new ArrayList<DatosPersona>();
-		for(DatosPersona Dp:Datos.PERSONAS) {
-			personas.add(Dp);
-		}
-		Collections.sort(personas);
-		System.out.println("lista ordenadas de personas segun su nombre:");
-		Iterator<DatosPersona> it= personas.iterator();
-		while(it.hasNext()) {
-			DatosPersona per =(DatosPersona)it.next();
-			Connection conex =ConexBD.establecerConexion();
-			String insert=("insert into Personas(id,nombre,telefono,nifnie)values(?,?,?)");
-			
-			try {
-				PreparedStatement ps = conex.prepareStatement(insert);
-				for(DatosPersona Dp:personas) {
-					ps.setLong(1,Dp.getId());
-					ps.setString(2,Dp.getNombre());
-					ps.setString(3,Dp.getTelefono());
-					ps.setString(4,Dp.getNifnie().mostrar());	
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
+	//nota post examen: la conexion obiamente no  puede ir dentro del bucle, eso haria que tenga que 
+	//conectarse despues de cada vuelta,consejo declarar la conecion lo primero!
+	public static boolean insertarPersonas() {
+		//cambie el metodo de void a boolean para que devuelva true si sale bien!
+		boolean ret = false;
+		String consultaInsertStr1 = "insert into personas(id, nombre, telefono, fechanac, nifnie) values (?,?,?,?,?)";
+		try {
+			Connection conex = ConexBD.establecerConexion();
+			PreparedStatement pstmt = conex.prepareStatement(consultaInsertStr1);
+
+			List<DatosPersona> personas = new LinkedList<>();
+			for (DatosPersona dp : Datos.PERSONAS) {
+				personas.add(dp);
 			}
-			
-			
-			
+			Collections.sort(personas);
+			Iterator<DatosPersona> it = personas.iterator();
+			while (it.hasNext()) {
+				DatosPersona dp = (DatosPersona) it.next();
+				pstmt.setLong(1, dp.getId());
+				pstmt.setString(2, dp.getNombre());
+				pstmt.setString(3, dp.getTelefono());
+				//én el examen  nos faltaba meter la fecha , aqui lo convierte primero en un  valor valido y luego ya lo incluye
+				//pstmt.setdate!
+				java.sql.Date fechaSQL = java.sql.Date.valueOf(dp.getFechaNac());
+				pstmt.setDate(4, fechaSQL);
+				pstmt.setString(5, dp.getNifnie().mostrar());
+				int resultadoInsercion = pstmt.executeUpdate();
+				ret = (resultadoInsercion != 0);
+			}
+		} catch (SQLException e) {
+			System.out.println("Se ha producido una SQLException:" + e.getMessage());
+			e.printStackTrace();
+			ret = false;
 		}
+
+		return ret;
 	}
+	
 
 }
